@@ -6,22 +6,43 @@ async function searchHotels() {
 	// Clear previous hotel elements
 	const hotelsDiv = document.getElementById("hotels");
 	hotelsDiv.innerHTML = "";
+	const errorDiv = document.getElementById("errorMessage");
+	if (errorDiv) errorDiv.textContent = "";
 
 	console.log("Searching for hotels...");
 	const checkin = document.getElementById("checkin").value;
 	const checkout = document.getElementById("checkout").value;
-	const adults = document.getElementById("adults").value;
+	const adultsValue = document.getElementById("adults").value;
 	const city = document.getElementById("city").value;
 	const countryCode = document.getElementById("countryCode").value;
 	const environment = document.getElementById("environment").value;
 
-	console.log("Checkin:", checkin, "Checkout:", checkout, "Adults", adults);
+	const checkinDate = new Date(checkin);
+	const checkoutDate = new Date(checkout);
+	const adults = parseInt(adultsValue, 10);
+
+	if (!city || !countryCode || isNaN(checkinDate.getTime()) || isNaN(checkoutDate.getTime()) || checkoutDate <= checkinDate || !Number.isFinite(adults) || adults < 1) {
+		const message = !city || !countryCode
+			? "Please enter city and country code."
+			: (!Number.isFinite(adults) || adults < 1)
+				? "Please enter a valid number of adults (>=1)."
+				: "Please enter valid dates (checkout after checkin).";
+		if (errorDiv) errorDiv.textContent = message;
+		document.getElementById("loader").style.display = "none";
+		return;
+	}
 
 	try {
-		// Make a request to your backend server
-		const response = await fetch(
-			`http://localhost:3000/search-hotels?checkin=${checkin}&checkout=${checkout}&adults=${adults}&city=${city}&countryCode=${countryCode}&environment=${environment}`
-		);
+		const params = new URLSearchParams({
+			checkin,
+			checkout,
+			adults: String(adults),
+			city,
+			countryCode,
+			environment,
+		});
+
+		const response = await fetch(`/search-hotels?${params.toString()}`);
 		const rates = (await response.json()).rates;
 		console.log(rates);
 		displayRatesAndHotels(rates);
@@ -29,6 +50,7 @@ async function searchHotels() {
 		document.getElementById("loader").style.display = "none";
 	} catch (error) {
 		console.error("Error fetching hotels:", error);
+		if (errorDiv) errorDiv.textContent = "Failed to fetch hotels.";
 		document.getElementById("loader").style.display = "none";
 	}
 }
@@ -37,12 +59,22 @@ function displayRatesAndHotels(rates) {
 	const hotelsDiv = document.getElementById("hotels");
 
 	rates.forEach((rate) => {
+		if (!rate.roomTypes || rate.roomTypes.length === 0) return;
+
 		const minRate = rate.roomTypes.reduce((min, current) => {
-			const minAmount = min.rates[0].retailRate.total[0].amount;
-			const currentAmount = current.rates[0].retailRate.total[0].amount;
+			const minAmount = min?.rates?.[0]?.retailRate?.total?.[0]?.amount ?? Number.POSITIVE_INFINITY;
+			const currentAmount = current?.rates?.[0]?.retailRate?.total?.[0]?.amount ?? Number.POSITIVE_INFINITY;
 			return minAmount < currentAmount ? min : current;
 		});
-		console.log();
+
+		const retailTotal = minRate?.rates?.[0]?.retailRate?.total?.[0];
+		const suggested = minRate?.rates?.[0]?.retailRate?.suggestedSellingPrice?.[0];
+		const refundableTag = minRate?.rates?.[0]?.cancellationPolicies?.refundableTag;
+		const boardType = minRate?.rates?.[0]?.boardType;
+		const boardName = minRate?.rates?.[0]?.boardName;
+
+		const imageUrl = rate?.hotel?.main_photo || 'https://via.placeholder.com/250?text=Hotel';
+		const rateName = minRate?.rates?.[0]?.name || 'Rate';
 
 		const hotelElement = document.createElement("div");
 		hotelElement.innerHTML = `
@@ -50,38 +82,27 @@ function displayRatesAndHotels(rates) {
 		<div class='card'>
 			<div class='flex items-start'>
 				<div class='card-image'>
-					<img
-						src='${rate.hotel.main_photo}'
-						alt='hotel'
-					/>
+					<img src='${imageUrl}' alt='hotel' />
 				</div>
 				<div class='flex-between-end w-full'>
 					<div>
-						<h4 class='card-title'>${minRate.rates[0].name}</h4>
-						<h3 class='card-id'>Hotel Name : ${rate.hotel.name}</h3>
+						<h4 class='card-title'>${rateName}</h4>
+						<h3 class='card-id'>Hotel Name : ${rate?.hotel?.name || ''}</h3>
 						<p class='featues'>
-							Max Occupancy ∙ <span>${minRate.rates[0].maxOccupancy}</span> Adult Count
-							∙ <span>${minRate.rates[0].adultCount}</span> Child Count ∙
-							<span>${minRate.rates[0].childCount}</span>
-							Board Type ∙ <span>${minRate.rates[0].boardType}</span> Board Name ∙
-							<span> ${minRate.rates[0].boardName}</span>
+							Max Occupancy ∙ <span>${minRate?.rates?.[0]?.maxOccupancy ?? '-'}</span> Adult Count ∙
+							<span>${minRate?.rates?.[0]?.adultCount ?? '-'}</span> Child Count ∙
+							<span>${minRate?.rates?.[0]?.childCount ?? '-'}</span>
+							Board Type ∙ <span>${boardType ?? '-'}</span> Board Name ∙
+							<span>${boardName ?? '-'}</span>
 						</p>
-						<p class='red flex items-center'>
-							<span>
-								${minRate.rates[0].cancellationPolicies.refundableTag == "NRFN"
-				? "Non refundable"
-				: "Refundable"
-			}
-							</span>
+						<p class='flex items-center'>
+							<span>${refundableTag === "NRFN" ? "Non refundable" : "Refundable"}</span>
 						</p>
 					</div>
 					<p class='flex flex-col mb-0'>
-    					<span class=${minRate.rates[0].retailRate.total[0].amount}></span>
-   						<span class=${minRate.rates[0].retailRate.suggestedSellingPrice[0].amount}></span>
-   						<button class='price-btn' onclick="proceedToBooking('${minRate.offerId}')">
-       						 <s>${minRate.rates[0].retailRate.suggestedSellingPrice[0].amount} ${minRate.rates[0].retailRate.suggestedSellingPrice[0].currency}</s>
-        					BOOK NOW ${minRate.rates[0].retailRate.total[0].amount} ${minRate.rates[0].retailRate.total[0].currency}
-    					</button>
+		    			<span>${suggested ? `<s>${suggested.amount} ${suggested.currency}</s>` : ''}</span>
+		   				<span class='price'>${retailTotal ? `${retailTotal.amount} ${retailTotal.currency}` : ''}</span>
+		   				<button class='price-btn' onclick="proceedToBooking('${minRate.offerId}')">Book now</button>
 					</p>
 				</div>
 			</div>
@@ -148,7 +169,7 @@ async function proceedToBooking(rateId) {
 			}
 			console.log(bodyData);
 
-			const prebookResponse = await fetch(`http://localhost:3000/prebook`, {
+			const prebookResponse = await fetch(`/prebook`, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
