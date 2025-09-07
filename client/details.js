@@ -6,21 +6,42 @@ async function searchHotelRate() {
     // Clear previous hotel elements
     const hotelsDiv = document.getElementById("hotels");
     hotelsDiv.innerHTML = "";
+    const ratesDiv = document.getElementById("rates");
+    ratesDiv.innerHTML = "";
+    const errorMessageDiv = document.getElementById("errorMessage");
+    if (errorMessageDiv) errorMessageDiv.textContent = "";
 
     console.log("Searching for hotels...");
     const checkin = document.getElementById("checkin").value;
     const checkout = document.getElementById("checkout").value;
-    const adults = document.getElementById("adults").value;
+    const adultsValue = document.getElementById("adults").value;
     const hotelId = document.getElementById("hotelId").value;
     const environment = document.getElementById("environment").value;
 
-    console.log("Checkin:", checkin, "Checkout:", checkout, "Adults", adults, "hotelId", hotelId);
+    const checkinDate = new Date(checkin);
+    const checkoutDate = new Date(checkout);
+    const adults = parseInt(adultsValue, 10);
+
+    if (!hotelId || isNaN(checkinDate.getTime()) || isNaN(checkoutDate.getTime()) || checkoutDate <= checkinDate || !Number.isFinite(adults) || adults < 1) {
+        const message = !hotelId
+            ? "Please enter a hotel ID."
+            : (!Number.isFinite(adults) || adults < 1)
+                ? "Please enter a valid number of adults (>=1)."
+                : "Please enter valid dates (checkout after checkin).";
+        if (errorMessageDiv) errorMessageDiv.textContent = message;
+        document.getElementById("loader").style.display = "none";
+        return;
+    }
 
     try {
-        // Make a request to your backend server
-        const response = await fetch(
-            `http://localhost:3000/search-rates?checkin=${checkin}&checkout=${checkout}&adults=${adults}&hotelId=${hotelId}`
-        );
+        const params = new URLSearchParams({
+            checkin,
+            checkout,
+            adults: String(adults),
+            hotelId,
+            environment,
+        });
+        const response = await fetch(`/search-rates?${params.toString()}`);
         const data = await response.json();
         const hotelInfo = data.hotelInfo;
         const rateInfo = data.rateInfo;
@@ -34,9 +55,11 @@ async function searchHotelRate() {
         document.getElementById("loader").style.display = "none"; // Hide the loader
 
         // Display error message
-        const errorMessageDiv = document.getElementById("errorMessage");
-        errorMessageDiv.style.display = "block"; // Make the error message visible
-        errorMessageDiv.textContent = "No availability found"; // Set the error message text
+        const errorMessageDiv2 = document.getElementById("errorMessage");
+        if (errorMessageDiv2) {
+            errorMessageDiv2.style.display = "block"; // Make the error message visible
+            errorMessageDiv2.textContent = "No availability found"; // Set the error message text
+        }
     }
 }
 
@@ -179,7 +202,7 @@ async function proceedToBooking(rateId) {
                 bodyData.voucherCode = voucher;
             }
 
-            const prebookResponse = await fetch(`http://localhost:3000/prebook`, {
+            const prebookResponse = await fetch(`/prebook`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

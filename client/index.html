@@ -44,23 +44,23 @@
 	<div id="search" class="search">
 		<div class="input-group">
 			<label for="city">Enter city name (e.g. London)</label>
-			<input type="text" class="input-bk" id="city" value="New York" />
+			<input type="text" class="input-bk" id="city" value="New York" placeholder="City" />
 		</div>
 		<div class="input-group">
 			<label for="countryCode">Enter country code (e.g. UK)</label>
-			<input type="text" class="input-bk" id="countryCode" value="US" />
+			<input type="text" class="input-bk" id="countryCode" value="US" placeholder="Country code (e.g., US)" />
 		</div>
 		<div class="input-group">
 			<label for="checkin">Check in (YYYY-MM-DD format)</label>
-			<input type="text" class="input-bk" id="checkin" value="2025-11-20" />
+			<input type="date" class="input-bk" id="checkin" value="2025-11-20" />
 		</div>
 		<div class="input-group">
 			<label for="checkout">Check out (YYYY-MM-DD format)</label>
-			<input type="text" class="input-bk" id="checkout" value="2025-11-21" />
+			<input type="date" class="input-bk" id="checkout" value="2025-11-21" />
 		</div>
 		<div class="input-group">
 			<label for="adults">Number of adult guests staying</label>
-			<input type="text" class="input-bk" id="adults" value="1" />
+			<input type="number" class="input-bk" id="adults" value="1" min="1" step="1" />
 		</div>
 		<div class="input-group">
 			<label for="environment">Select Environment</label>
@@ -73,6 +73,7 @@
 		<a href="details.html" class="price-btn">Look for rates for a single hotel</a>
 	</div>
 	<div id="loader">Loading... Please wait.</div>
+	<div id="errorMessage"></div>
 	<div id="hotels"></div>
 	<div id="rates"></div>
 	<div id="payment-form"></div>
